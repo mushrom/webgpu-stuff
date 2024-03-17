@@ -47,7 +47,7 @@ export class matrix {
 		}
 	}
 
-	toArray(arr, offset) {
+	toArray(arr, offset = 0) {
 		let meh = 0;
 
 		for (let c = 0; c < this.columns; c++) {
@@ -61,7 +61,7 @@ export class matrix {
 		}
 	}
 
-	fromArray(arr, offset) {
+	fromArray(arr, offset = 0) {
 		let meh = 0;
 
 		for (let c = 0; c < this.columns; c++) {

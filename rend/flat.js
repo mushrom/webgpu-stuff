@@ -23,6 +23,16 @@ export default function(device, targetFormat, pipelineOpts = {}) {
 		],
 	});
 
+	const modelUniformLayout = device.createBindGroupLayout({
+		entries: [
+			{
+				binding: 0,
+				visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+				buffer: { type: "uniform" },
+			},
+		],
+	});
+
 	const textureLayout = device.createBindGroupLayout({
 		entries: [
 			{
@@ -37,7 +47,7 @@ export default function(device, targetFormat, pipelineOpts = {}) {
 		label: "Flat-shaded render pipeline",
 		//layout: "auto",
 		layout: device.createPipelineLayout({
-			bindGroupLayouts: [uniformLayout, textureLayout],
+			bindGroupLayouts: [uniformLayout, textureLayout, modelUniformLayout],
 		}),
 
 		primitive: {

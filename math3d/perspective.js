@@ -30,9 +30,9 @@ export function translation(val /* vec3 */) {
 
 export function scale(val /* vec3 */) {
 	return new matrix(4, 4,
-		val.x, 0, 0, 1,
-		0, val.y, 0, 1,
-		0, 0, val.z, 1,
+		val.x, 0, 0, 0,
+		0, val.y, 0, 0,
+		0, 0, val.z, 0,
 		0, 0, 0, 1,
 	);
 }

@@ -20,8 +20,7 @@ export default function vertex_model(device) {
 			};
 
 			@group(0) @binding(0) var<uniform> cam: Camera;
-			@group(1) @binding(0) var mainSampler: sampler;
-			@group(2) @binding(0) var texAlbedo  : texture_2d<f32>;
+			@group(2) @binding(0) var<uniform> model: mat4x4f;
 
 			@vertex fn vs(vert: vertex_input)
 				-> vertex_output
@@ -29,7 +28,7 @@ export default function vertex_model(device) {
 				var output: vertex_output;
 
 				//output.position = vec4f(vert.position, 1);
-				output.position = cam.projection * cam.view * vec4f(vert.position, 1);
+				output.position = cam.projection * cam.view * model * vec4f(vert.position, 1);
 				output.normal   = vert.normal;
 				//output.color    = vert.color;
 				output.color    = vec3(1, 0, 0);
