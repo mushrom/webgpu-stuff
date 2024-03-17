@@ -12,6 +12,10 @@ export default class SceneNode {
 		this.parent = null;
 		this.children = [];
 		this.components = {};
+		this.renderState = {
+			buffers:    {},
+			bindGroups: {},
+		};
 
 		this.needsUpdate = true;
 	}

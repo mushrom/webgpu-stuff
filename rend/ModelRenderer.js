@@ -147,8 +147,8 @@ export default class ModelRenderer {
 			list.makeBindGroups(this.device, this.pipeline.getBindGroupLayout(2));
 
 			for (const drawable of list.drawables) {
-				const {mesh} = drawable;
-				const {transformBindGroup} = mesh;
+				const {mesh, renderState} = drawable;
+				const {transformBindGroup} = renderState.bindGroups;
 
 				if (mesh && transformBindGroup) {
 					pass.setBindGroup(2, transformBindGroup);

@@ -20,6 +20,7 @@ export default class RenderList {
 				type: "mesh",
 				mesh: node.components.mesh,
 				transform: temp,
+				renderState: node.renderState,
 				// TODO: materials, sorting
 			});
 		}
@@ -37,16 +38,16 @@ export default class RenderList {
 		const usage = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST;
 
 		for (const drawable of this.drawables) {
-			const {mesh, transform} = drawable;
+			const {mesh, transform, renderState} = drawable;
 			transform.toArray(temp);
 
-			if (mesh && mesh.transformBuf) {
+			if (mesh && renderState.buffers.meshTransform) {
 				// already have a buffer created
-				device.queue.writeBuffer(mesh.transformBuf, 0, temp);
+				device.queue.writeBuffer(renderState.buffers.meshTransform, 0, temp);
 
 			} else if (mesh) {
 				console.log("Creating new transform buffer");
-				mesh.transformBuf = makeBuffer(device, usage, temp);
+				renderState.buffers.meshTransform = makeBuffer(device, usage, temp);
 			}
 		}
 
@@ -55,15 +56,16 @@ export default class RenderList {
 
 	makeBindGroups(device, layout) {
 		for (const drawable of this.drawables) {
-			const {mesh} = drawable;
-			const {transformBuf, transformBindGroup} = mesh;
+			const {mesh, renderState} = drawable;
+			const {transformBindGroup} = renderState.bindGroups;
+			const {meshTransform}      = renderState.buffers;
 
-			if (mesh && transformBuf && !transformBindGroup) {
+			if (mesh && meshTransform && !transformBindGroup) {
 				console.log("Creating new transform bind group");
-				mesh.transformBindGroup = device.createBindGroup({
+				renderState.bindGroups.transformBindGroup = device.createBindGroup({
 					layout: layout,
 					entries: [
-						{binding: 0, resource: {buffer: transformBuf}},
+						{binding: 0, resource: {buffer: meshTransform}},
 					],
 				});
 			}

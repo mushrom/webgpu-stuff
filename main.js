@@ -82,21 +82,19 @@ const root  = new SceneNode();
 const blah  = new SceneNode();
 const blarg = new SceneNode();
 
-const shallowCopy = (obj) => Object.assign({}, obj);
-
 const meshes = [];
 
 for (let k = -8; k < 8; k++) {
 	for (let i = -8; i < 8; i++) {
 		const node = new SceneNode();
 		node.setPosition(new M3D.vec3(1.25*i, 3 + 1.25*k, -20));
-		node.components.mesh = shallowCopy(cuboidBufs);
+		node.components.mesh = cuboidBufs;
 		root.add(node);
 	}
 }
 
-blah.components.mesh  = shallowCopy(cuboidBufs);
-blarg.components.mesh = shallowCopy(cuboidBufs);
+blah.components.mesh  = cuboidBufs;
+blarg.components.mesh = cuboidBufs;
 
 blah.setPosition(new M3D.vec3(1, 2, 3));
 blarg.setPosition(new M3D.vec3(0, -1, -2));
