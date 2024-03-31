@@ -2,6 +2,7 @@ import M3D from "../math3d/math.js";
 
 export default class SceneNode {
 	constructor() {
+		this.name   = ""
 		this.matrix = new M3D.mat4();
 
 		this.position = new M3D.vec3();
