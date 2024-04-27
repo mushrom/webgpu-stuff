@@ -2,32 +2,6 @@ import flat from "./flat.js";
 import makeBuffer from "./makeBuffer.js";
 import M3D from "../math3d/math.js"
 
-const makeTestTexture = () => {
-	const data = [];
-
-	for (let x = 0; x < 32; x++) {
-		for (let y = 0; y < 32; y++) {
-			const val = (x^y) << 3;
-			data.push([val, 0, val, 255]);
-			//data.push([x << 3, y << 3, val, 255]);
-			//data.push([x << 3, y << 3, 0, 255]);
-		}
-	}
-
-	return {
-		width: 32,
-		height: 32,
-		data: new Uint8Array(data.flat()),
-	};
-};
-
-const testTexData = makeTestTexture();
-const makeDefaultAlbedoTex = (device) => device.createTexture({
-	size:   [testTexData.width, testTexData.height],
-	format: 'rgba8unorm',
-	usage:  GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-});
-
 export default class ModelRenderer {
 	constructor(device, context, format, width, height) {
 		this.device   = device;
@@ -41,7 +15,12 @@ export default class ModelRenderer {
 		this.uniformData = new Float32Array(uniformSize);
 		this.uniformBuf  = makeBuffer(device, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, this.uniformData);
 
-		this.mainSampler = device.createSampler({});
+		this.mainSampler = device.createSampler({
+			addressModeU: "repeat",
+			addressModeV: "repeat",
+			magFilter: "linear",
+			minFilter: "linear",
+		});
 
 		this.bindGroup = device.createBindGroup({
 			layout: this.pipeline.getBindGroupLayout(0),
@@ -57,17 +36,12 @@ export default class ModelRenderer {
 			usage:  GPUTextureUsage.RENDER_ATTACHMENT,
 		});
 
+		/*
 		const defaultAlbedoTex = makeDefaultAlbedoTex(device);
 		device.queue.writeTexture({texture: defaultAlbedoTex}, testTexData.data,
 								  {bytesPerRow: testTexData.width*4},
 								  {width: testTexData.width, height: testTexData.height});
-
-		this.defaultTexBindGroup = device.createBindGroup({
-			layout: this.pipeline.getBindGroupLayout(1),
-			entries: [
-				{binding: 0, resource: defaultAlbedoTex.createView()},
-			],
-		});
+								  */
 
 		this.renderPassDescriptor = {
 			label: 'render pass',
@@ -94,7 +68,7 @@ export default class ModelRenderer {
 			this.cameraNode.updateMatrix();
 		}
 
-		const proj = M3D.perspective(Math.PI/4, this.width/this.height, 0.1, 100);
+		const proj = M3D.perspective(Math.PI/3, this.width/this.height, 0.1, 100);
 		const view = this.cameraNode? this.cameraNode.matrix : new M3D.mat4();
 
 		proj.toArray(this.uniformData, 0);
@@ -113,6 +87,7 @@ export default class ModelRenderer {
 			= this.context.getCurrentTexture().createView();
 	}
 
+	/*
 	// TODO: render queue abstraction, scene -> render queues
 	renderMesh(mesh) {
 		const aspect = this.width / this.height;
@@ -131,6 +106,7 @@ export default class ModelRenderer {
 		const commandBuffer = encoder.finish();
 		this.device.queue.submit([commandBuffer]);
 	}
+	*/
 
 	drawRenderLists(...lists) {
 		const aspect = this.width / this.height;
@@ -140,17 +116,20 @@ export default class ModelRenderer {
 
 		pass.setPipeline(this.pipeline);
 		pass.setBindGroup(0, this.bindGroup);
-		pass.setBindGroup(1, this.defaultTexBindGroup);
 
 		for (const list of lists) {
 			list.bufferTransforms(this.device);
-			list.makeBindGroups(this.device, this.pipeline.getBindGroupLayout(2));
+			list.makeBindGroups(this.device, this.pipeline.getBindGroupLayout(2), this.pipeline.getBindGroupLayout(1));
 
 			for (const drawable of list.drawables) {
 				const {mesh, renderState} = drawable;
-				const {transformBindGroup} = renderState.bindGroups;
+				// TODO: should move material parameters into mesh bind group to minimize
+				//       the number of bind groups, turns out the limit on the number of bind
+				//       groups is actually pretty low
+				const {transformBindGroup, materialBindGroup} = renderState.bindGroups;
 
-				if (mesh && transformBindGroup) {
+				if (mesh && transformBindGroup && materialBindGroup) {
+					pass.setBindGroup(1, materialBindGroup);
 					pass.setBindGroup(2, transformBindGroup);
 					pass.setVertexBuffer(0, mesh.vertexBuf);
 					pass.setIndexBuffer(mesh.indexBuf, "uint16");

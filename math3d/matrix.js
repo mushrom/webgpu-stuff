@@ -115,7 +115,7 @@ export class matrix {
 
 	multiplyVec(v) {
 		if (v.size !== this.columns) {
-			throw `Incompatible matrix dimensions: ${this.colummns}x${this.rows}, 1x${m.rows}`;
+			throw `Incompatible matrix dimensions: ${this.colummns}x${this.rows}, 1x${v.size}`;
 		}
 
 		let ret = new vec(this.rows);

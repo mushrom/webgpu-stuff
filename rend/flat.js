@@ -18,7 +18,8 @@ export default function(device, targetFormat, pipelineOpts = {}) {
 			{
 				binding: 1,
 				visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-				sampler: {type: "non-filtering"},
+				//sampler: {type: "non-filtering"},
+				sampler: {type: "filtering"},
 			},
 		],
 	});
@@ -52,7 +53,7 @@ export default function(device, targetFormat, pipelineOpts = {}) {
 
 		primitive: {
 			topology: "triangle-list",
-			cullMode: "none",
+			cullMode: "back",
 		},
 
 		depthStencil: {

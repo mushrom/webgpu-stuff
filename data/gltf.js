@@ -2,9 +2,7 @@ import SceneNode from "./SceneNode.js";
 import M3D from "../math3d/math.js";
 import loadMeshBuffer from "../rend/loadMeshBuffer.js";
 
-import makeCuboid from "./cube.js";
-
-const cuboidData = makeCuboid();
+import defaultMaterial from "./defaultMaterial.js";
 
 const glTFTypes = {
 	SIGNED_BYTE:    5120,
@@ -29,21 +27,28 @@ export async function loadglTFAscii(uri, device) {
 		.then(v => v.text())
 		.then(v => JSON.parse(v));
 
-	return loadglTFJSON(json, device);
+	console.log(json);
+
+	return loadglTFJSON(json, device, uri);
 }
 
 export function loadglTFBinary(uri, device) {
 	return new SceneNode();
 }
 
-async function loadglTFJSON(json, device) {
-	return new gltfData(json, device).loadRootScene();
+async function loadglTFJSON(json, device, uri) {
+	return new gltfData(json, device, uri).loadRootScene();
 }
 
+const base64_prefix = "data:application/octet-stream;base64,";
+const base64_png_prefix = "data:image/png;base64,";
+const base64_jpg_prefix = "data:image/jpeg;base64,";
+
 export class gltfData {
-	constructor(json, device) {
+	constructor(json, device, uri) {
 		this.json   = json;
 		this.device = device;
+		this.uri    = uri;
 	}
 
 	async loadBuffers() {
@@ -56,7 +61,6 @@ export class gltfData {
 
 		for (let i = 0; i < this.json.buffers.length; i++) {
 			const uri = this.json.buffers[i].uri;
-			const base64_prefix = "data:application/octet-stream;base64,";
 
 			if (uri.startsWith(base64_prefix)) {
 				let data = atob(uri.substring(base64_prefix.length));
@@ -64,20 +68,96 @@ export class gltfData {
 				this.loadedBuffers[i] = buf;
 
 			} else {
-				console.log("NOTE: not loaded:", uri);
-				/*
-				// TODO: handle paths
-				bufferPromises[i] = fetch(this.json.buffers[i].uri)
+				const diridx = this.uri.lastIndexOf("/");
+				const curdir = (diridx >= 0)? this.uri.substring(0, diridx) : "";
+				const fullpath = "./" + curdir + "/" + uri;
+
+				bufferPromises[i] = fetch(fullpath)
 					.then(v => v.blob())
 					.then(v => v.arrayBuffer())
 					.then(v => this.loadedBuffers[i] = new Uint8Array(v))
 					.then(v => console.log(v))
 					;
-					*/
 			}
 		}
 
 		await Promise.all(bufferPromises);
+	}
+
+	async loadImages() {
+		if (this.loadedImages) {
+			return;
+		}
+
+		this.loadedImages = [];
+		const imagePromises = [];
+
+		if (this.json.images === undefined) {
+			return;
+		}
+
+		for (let i = 0; i < this.json.images.length; i++) {
+			const uri = this.json.images[i].uri;
+
+			if (!uri)
+				continue;
+
+			const diridx = this.uri.lastIndexOf("/");
+			const curdir = (diridx >= 0)? this.uri.substring(0, diridx) : "";
+			const isBase64 = uri.startsWith(base64_png_prefix) || uri.startsWith(base64_jpg_prefix);
+			const fullpath = isBase64? uri : "./" + curdir + "/" + uri;
+
+			console.log("Loading image:", fullpath);
+			console.log(uri);
+
+			imagePromises.push(new Promise((resolve, reject) => {
+				let img = new Image();
+
+				img.onload = () => {
+					let canvas = document.createElement("canvas");
+					canvas.width  = img.width;
+					canvas.height = img.height;
+
+					let ctx = canvas.getContext("2d");
+					ctx.drawImage(img, 0, 0);
+
+					let data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+					resolve(data);
+				};
+
+				img.src = fullpath;
+
+			}).then((buf) => {
+				this.loadedImages[i] = buf;
+				console.log(`Image ${i}:`, buf);
+			}));
+		}
+
+		await Promise.all(imagePromises);
+	}
+
+	async loadMaterials() {
+		await this.loadImages();
+
+		const defaultMat = defaultMaterial();
+		this.loadedMaterials = [];
+
+		for (let i = 0; i < this.json.materials.length; i++) {
+			const ret = {};
+
+			const mat = this.json.materials[i];
+			const albedoIdx = mat.pbrMetallicRoughness?.baseColorTexture?.index ?? -1;
+
+			console.log("material:", mat, albedoIdx);
+
+			if (albedoIdx >= 0) {
+				console.log("got here", this.loadedImages[albedoIdx]);
+				ret.albedo = this.loadedImages[albedoIdx];
+			}
+
+			const temp = Object.assign({}, defaultMat, ret);
+			this.loadedMaterials.push(temp);
+		}
 	}
 
 	readAccessor(acc) {
@@ -165,7 +245,7 @@ export class gltfData {
 				}
 
 				if (prim.attributes.TANGENT !== undefined) {
-					subMesh.tangents = this.readAccessor(prim.attributes.TANGENTS);
+					subMesh.tangents = this.readAccessor(prim.attributes.TANGENT);
 				}
 
 				if (prim.attributes.TEXCOORD_0 !== undefined) {
@@ -180,6 +260,7 @@ export class gltfData {
 					console.error("Didn't generate identity indices, TODO", mesh, prim);
 				}
 
+				subMesh.material = prim.material;
 				meshData.push(subMesh);
 			}
 
@@ -194,20 +275,26 @@ export class gltfData {
 		ret.name = node.name ?? "";
 
 		if (node.matrix) {
-			// decompose to TRS
+			ret.setMatrix(new M3D.mat4(...node.matrix));
 
 		} else {
-			if (node.position) ret.setPosition(new M3D.vec3(...node.position));
-			// TODO: quaternions
-			//if (node.rotation) ret.setPosition(new M3D.quat(...node.position));
-			if (node.scale)    ret.setScale(new M3D.vec3(...node.scale));
+			if (node.translation) ret.setPosition(new M3D.vec3(...node.translation));
+			if (node.rotation)    ret.setRotation(new M3D.quat(...node.rotation));
+			if (node.scale)       ret.setScale(new M3D.vec3(...node.scale));
 		}
 
 		if (node.mesh !== undefined) {
 			for (let subMesh of this.loadedMeshes[node.mesh]) {
 				const temp = new SceneNode();
+				const material = (subMesh.material !== undefined)
+					? this.loadedMaterials[subMesh.material]
+					: defaultMaterial();
+
 				// TODO: ideally shouldn't need any render state here
-				temp.components.mesh = loadMeshBuffer(this.device, subMesh);
+				temp.components.mesh     = loadMeshBuffer(this.device, subMesh);
+				temp.components.material = material;
+				console.log("mesh buffers:", temp.components.mesh);
+				console.log("positions:", subMesh.positions);
 				ret.add(temp);
 			}
 		}
@@ -223,6 +310,8 @@ export class gltfData {
 	async loadRootScene() {
 		await this.loadBuffers();
 		await this.loadMeshes();
+		await this.loadImages();
+		await this.loadMaterials();
 
 		const scene = this.json.scene ?? 0;
 		const nodes = this.json.scenes[scene].nodes;

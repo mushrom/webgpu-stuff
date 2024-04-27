@@ -8,7 +8,7 @@ import {matrix, mat4} from "./matrix.js";
 export function perspective(fovy, aspect, near, far) {
 	const focal_len = 1.0 / Math.tan(fovy / 2.0);
 	const x =  focal_len / aspect;
-	const y = -focal_len;
+	const y =  focal_len;
 	const A = -far / (far - near);
 	const B =  near * A;
 

@@ -147,6 +147,16 @@ export class vec {
 		return this;
 	}
 
+	lengthSq() {
+		let sum = 0;
+
+		for (let i = 0; i < this.size; i++) {
+			sum += this.data[i]*this.data[i];
+		}
+
+		return sum;
+	}
+
 	length() {
 		let sum = 0;
 

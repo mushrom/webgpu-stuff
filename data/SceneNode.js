@@ -7,7 +7,7 @@ export default class SceneNode {
 
 		this.position = new M3D.vec3();
 		this.scale    = new M3D.vec3(1, 1, 1);
-		this.rotation = new M3D.mat4(); // TODO: quaternions
+		this.rotation = new M3D.quat();
 
 		this.isStatic = false;
 		this.parent = null;
@@ -47,6 +47,12 @@ export default class SceneNode {
 		this.needsUpdate = true;
 	}
 
+	setMatrix(matrix) {
+		// TODO: decompose matrix
+		this.matrix = matrix;
+		this.needsUpdate = false;
+	}
+
 	updateMatrix() {
 		if (!this.needsUpdate) {
 			return;
@@ -54,7 +60,7 @@ export default class SceneNode {
 
 		this.needsUpdate = false;
 		this.matrix = M3D.translation(this.position)
-		    .multiply(this.rotation)
+		    .multiply(this.rotation.toMat4())
 		    .multiply(M3D.scale(this.scale));
 	}
 }
